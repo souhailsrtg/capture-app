@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Capture 280 x 380</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,Arial,sans-serif;background:#111;color:#fff;min-height:100vh;display:flex;flex-direction:column}
+header{padding:12px;text-align:center;background:#1B365D}
+header h1{font-size:18px}
+.controls{padding:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;background:#1c1c1c}
+.controls label{font-size:13px;display:flex;align-items:center;gap:6px}
+.controls input{width:80px;padding:8px;border-radius:8px;border:1px solid #555;font-size:16px;text-align:center}
+#prefix{width:80px}
+button{padding:10px 16px;border-radius:10px;border:0;font-size:16px;font-weight:700;cursor:pointer}
+#btnStart{background:#2e86de;color:#fff}
+#btnCapture{background:#27ae60;color:#fff;font-size:18px;padding:14px 22px}
+#btnSwitch{background:#555;color:#fff}
+#stage{position:relative;flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;min-height:60vh}
+video,img#preview{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+/* cadre 280x380 */
+#frame{width:280px;height:380px;border:3px solid #00ff88;box-shadow:0 0 0 9999px rgba(0,0,0,.65);border-radius:6px;position:relative}
+#frame::after{content:'280 × 380';position:absolute;top:-26px;left:0;right:0;text-align:center;font-size:13px;color:#00ff88}
+#hint{text-align:center;font-size:13px;color:#aaa;padding:8px}
+#gallery{display:flex;gap:8px;flex-wrap:wrap;padding:10px;justify-content:center;background:#1c1c1c}
+.card{background:#222;border-radius:10px;padding:6px;text-align:center;width:120px}
+.card img{width:100%;height:auto;border-radius:6px;display:block}
+.card a{color:#2e86de;font-size:13px;word-break:break-all}
+#fileFallback{margin:10px auto;display:block;color:#fff}
+</style>
+</head>
+<body>
+<header><h1>📷 Capture 280 × 380</h1></header>
+<div class="controls">
+<label>N° <input id="num" type="number" value="1" min="1" max="999"></label>
+<button id="btnStart">▶ Caméra</button>
+<button id="btnSwitch">🔄</button>
+<input type="file" id="fileFallback" accept="image/*" capture="environment">
+</div>
+<div id="stage">
+<video id="video" autoplay playsinline muted></video>
+<div id="overlay"><div id="frame"></div></div>
+</div>
+<div style="text-align:center;padding:12px"><button id="btnCapture">📸 Capturer</button></div>
+<div id="hint">Cadrez dans le rectangle vert 280×380. Le fichier se nomme <b>1.jpg, 2.jpg … 999.jpg</b> puis passe au suivant.</div>
+<div id="gallery"></div>
+<canvas id="canvas" width="280" height="380" style="display:none"></canvas>
+<script>
+let stream=null, facing='environment';
+const video=document.getElementById('video');
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const numEl=document.getElementById('num');
+const gallery=document.getElementById('gallery');
+
+async function startCam(){
+  stopCam();
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:1920}},audio:false});
+    video.srcObject=stream;
+  }catch(e){alert('Caméra live impossible ('+e.message+'). Utilisez le bouton fichier ci-dessus.');}
+}
+function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
+document.getElementById('btnStart').onclick=startCam;
+document.getElementById('btnSwitch').onclick=()=>{facing=(facing==='environment'?'user':'environment');startCam();};
+
+// Capture depuis video live -> crop zone du cadre -> 280x380
+document.getElementById('btnCapture').onclick=()=>{
+  if(!stream||video.videoWidth===0){alert('Démarrez la caméra ou utilisez le fichier image.');return;}
+  // taille affichée du video
+  const vr=video.getBoundingClientRect();
+  const st=document.getElementById('stage').getBoundingClientRect();
+  // cadre 280x380 centré dans stage
+  const fw=280, fh=380;
+  const fx=st.width/2-fw/2 - (vr.left-st.left);
+  const fy=st.height/2-fh/2 - (vr.top-st.top);
+  // échelle video réel / affiché (object-fit:cover)
+  const vsx=video.videoWidth/vr.width, vsy=video.videoHeight/vr.height;
+  const s=Math.max(vsx,vsy); // cover
+  // zone visible réelle
+  const vw=vr.width*s, vh=vr.height*s;
+  const ox=(vw-video.videoWidth)/2, oy=(vh-video.videoHeight)/2;
+  let sx=(fx*s+ox), sy=(fy*s+oy), sw=fw*s, sh=fh*s;
+  // clamp
+  sx=Math.max(0,Math.min(video.videoWidth-sw,sx));
+  sy=Math.max(0,Math.min(video.videoHeight-sh,sy));
+  ctx.clearRect(0,0,280,380);
+  ctx.drawImage(video,sx,sy,sw,sh,0,0,280,380);
+  saveCanvas();
+};
+
+// Fallback fichier natif -> crop centre ratio 280:380 -> resize 280x380
+document.getElementById('fileFallback').onchange=(e)=>{
+  const f=e.target.files[0]; if(!f)return;
+  const img=new Image();
+  img.onload=()=>{
+    const targetRatio=280/380;
+    let sw=img.width, sh=img.height;
+    if(sw/sh>targetRatio){sw=sh*targetRatio;}else{sh=sw/targetRatio;}
+    const sx=(img.width-sw)/2, sy=(img.height-sh)/2;
+    ctx.clearRect(0,0,280,380);
+    ctx.drawImage(img,sx,sy,sw,sh,0,0,280,380);
+    saveCanvas();
+    URL.revokeObjectURL(img.src);
+  };
+  img.src=URL.createObjectURL(f);
+};
+
+function saveCanvas(){
+  const name=String(numEl.value||'1');
+  canvas.toBlob((blob)=>{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=name+'.jpg'; a.textContent=name+'.jpg';
+    // auto-download (marche sur Android/PC, sur iOS ouvrir + partager)
+    document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(),2000);
+    const card=document.createElement('div'); card.className='card';
+    const im=document.createElement('img'); im.src=url;
+    const lb=document.createElement('div'); lb.textContent=name+'.jpg';
+    const dl=document.createElement('a'); dl.href=url; dl.download=name+'.jpg'; dl.textContent='⬇ Télécharger';
+    card.appendChild(im); card.appendChild(lb); card.appendChild(dl);
+    gallery.prepend(card);
+    numEl.value=parseInt(numEl.value||'1',10)+1;
+  },'image/jpeg',0.92);
+}
+startCam();
+</script>
+</body>
+</html>
