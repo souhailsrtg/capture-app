@@ -66,26 +66,21 @@ function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=nul
 document.getElementById('btnStart').onclick=startCam;
 document.getElementById('btnSwitch').onclick=()=>{facing=(facing==='environment'?'user':'environment');startCam();};
 
-// Capture depuis video live -> crop zone du cadre -> 280x380
+// Capture depuis video live -> crop EXACT zone du cadre -> 280x380
 document.getElementById('btnCapture').onclick=()=>{
   if(!stream||video.videoWidth===0){alert('Démarrez la caméra ou utilisez le fichier image.');return;}
-  // taille affichée du video
-  const vr=video.getBoundingClientRect();
   const st=document.getElementById('stage').getBoundingClientRect();
-  // cadre 280x380 centré dans stage
+  const W=st.width, H=st.height;
   const fw=280, fh=380;
-  const fx=st.width/2-fw/2 - (vr.left-st.left);
-  const fy=st.height/2-fh/2 - (vr.top-st.top);
-  // échelle video réel / affiché (object-fit:cover)
-  const vsx=video.videoWidth/vr.width, vsy=video.videoHeight/vr.height;
-  const s=Math.max(vsx,vsy); // cover
-  // zone visible réelle
-  const vw=vr.width*s, vh=vr.height*s;
-  const ox=(vw-video.videoWidth)/2, oy=(vh-video.videoHeight)/2;
-  let sx=(fx*s+ox), sy=(fy*s+oy), sw=fw*s, sh=fh*s;
+  const fx=(W-fw)/2, fy=(H-fh)/2;
+  // object-fit:cover : la video remplit tout le stage
+  const vw=video.videoWidth, vh=video.videoHeight;
+  const k=Math.max(W/vw, H/vh);
+  const offX=(vw*k-W)/2, offY=(vh*k-H)/2;
+  let sx=(fx+offX)/k, sy=(fy+offY)/k, sw=fw/k, sh=fh/k;
   // clamp
-  sx=Math.max(0,Math.min(video.videoWidth-sw,sx));
-  sy=Math.max(0,Math.min(video.videoHeight-sh,sy));
+  sx=Math.max(0,Math.min(vw-sw,sx));
+  sy=Math.max(0,Math.min(vh-sh,sy));
   ctx.clearRect(0,0,280,380);
   ctx.drawImage(video,sx,sy,sw,sh,0,0,280,380);
   saveCanvas();
