@@ -20,8 +20,8 @@ button{padding:10px 16px;border-radius:10px;border:0;font-size:16px;font-weight:
 #stage{position:relative;flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;min-height:60vh}
 video,img#preview{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
 #overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-/* cadre visuel 200x270, sortie 280x380 */
-#frame{width:200px;height:270px;border:3px solid #00ff88;box-shadow:0 0 0 9999px rgba(0,0,0,.65);border-radius:6px;position:relative}
+/* cadre visuel 150x203, sortie 280x380 */
+#frame{width:150px;height:203px;border:3px solid #00ff88;box-shadow:0 0 0 9999px rgba(0,0,0,.65);border-radius:6px;position:relative}
 #frame::after{content:'Zoom → 280 × 380';position:absolute;top:-26px;left:0;right:0;text-align:center;font-size:13px;color:#00ff88}
 #hint{text-align:center;font-size:13px;color:#aaa;padding:8px}
 #gallery{display:flex;gap:8px;flex-wrap:wrap;padding:10px;justify-content:center;background:#1c1c1c}
@@ -71,7 +71,7 @@ document.getElementById('btnCapture').onclick=()=>{
   if(!stream||video.videoWidth===0){alert('Démarrez la caméra ou utilisez le fichier image.');return;}
   const st=document.getElementById('stage').getBoundingClientRect();
   const W=st.width, H=st.height;
-  const fw=200, fh=270;
+  const fw=150, fh=203;
   const fx=(W-fw)/2, fy=(H-fh)/2;
   // object-fit:cover : la video remplit tout le stage
   const vw=video.videoWidth, vh=video.videoHeight;
